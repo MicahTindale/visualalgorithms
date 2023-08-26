@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+
+
+<html>
+
+<head>
+	<title> Kruskals Algorithm </title>
+	<%- include("../partials/header.ejs") %>
+	
+	<style>
+		h1 {
+			text-align: center;
+		}
+			
+		
+	</style>
+		
+	<script type='text/javascript' src='lib/p5.js'></script>
+	<script type='text/javascript' src='lib/tools.js'> </script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+
+
+</head>
+
+<body>
+	<div class="modal" id='description_modal'>
+		<div class="modal-dialog">
+			<div class="modal-content">
+			
+				<div class="modal-header">
+					<h4 class="modal-title"> Simulation Description: </h4>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" id='close_description_modal'></button>
+				</div>
+			
+				<div class="modal-body">
+					<h5 class='mb-0'>This simulation has three parts: </h5></br> 
+					(1) Graph-edge generation </br>
+					
+					<p class='ms-5'>The simulation will first run an algorithm to connect all of the nodes together. The result will be a weighted graph.</p>
+					(2) Kruskal's Algorithm </br>
+					<p class='ms-5'>The simulation will then run Kruskal's algorithm to find the <u> minimum spanning tree. </u> A spanning tree is a collection of edges
+					that connects every node in a graph. A <i> minimum </i> spanning tree is the spanning tree with the least total edge weight. The 
+					minimum spanning tree is indicated in the simulation by the red edges.</p>
+					(3) Dijkstra's Algorithm </br>
+					<p class='ms-5'>The simulation will then run Dijkstra's algorithm to find the shortest path between two nodes. The start and end nodes
+					can be defined in the 'controls' panel. The resulting path is indicated in the simulation by the green edges. </p>
+					
+				</div>
+			</div>
+			
+		</div>
+	</div>
+
+
+	<div class='row'> 
+		<div class='container col-sm-3 p-2' id='controls'>
+			<div class='container border-bottom p-0'>
+			<h2> Controls </h2>
+			
+			<div class='row mb-2'>
+				<div class='col'>
+					<label for='speed'>Speed:</label>
+				</div>
+				<div class='col'>
+					<input class='form-control' type='range' min='1' max='50' value='1' id='run_speed' onchange='updateSpeed()'>
+				</div>
+			</div>
+			<div class='row mb-2'>
+				<div class='col'>
+					<label for='zoom'>Zoom:</label>
+				</div>
+				<div class='col'>
+					<input class='form-control' type='range' min='0.01' max='1' step='0.01' value='0.5' id='zoom' onchange='updateZoom()'>
+				</div>
+			</div>
+			<div class='row mb-2'>
+				<div class='col'>
+					<label for='number_of_nodes'>Number of Nodes:</label>
+				</div>
+				<div class='col'>
+					<input class='form-control' type='number' min='5' max='1000' value='10' id='number_of_nodes'>
+				</div>
+			</div>
+			<input class='form-control mb-2' type='button' value='Restart Simulation' id='restart_simulation' onclick='startSimulation()'>
+			
+			</div>
+			
+			<div class='container p-0 mt-2'>
+			
+			<div class='row mb-2'>
+				<div class='col'>
+					<label for='dijkstras_start'>Dijkstras Start:</label>
+				</div>
+				<div class='col'>
+					<input class='form-control' type='number' min='0' max='9' value='0' id='dijkstras_start'>
+				</div>
+			</div>
+			<div class='row mb-2'>
+				<div class='col'>
+					<label for='dijkstras_end'>Dijkstras End:</label>
+				</div>
+				<div class='col'>
+					<input class='form-control' type='number' min='0' max='9' value='7' id='dijkstras_end'>
+				</div>
+			</div>
+			<div class='row mb-2'>
+				<div class='col'>
+					<label for='current_path_distance'>Current Path Distance:</label>
+				</div>
+				<div class='col'>
+					<p id='current_path_distance'> </p>
+				</div>
+			</div>
+			<input class='form-control' type='button' value='Recalculate Dijkstras' id='calculate_dijkstras' onclick = "updateDijkstraValues()">
+			
+			</div>
+			
+		</div>
+
+		<div class='container col-sm-8 p-0' id='my_canvas'>
+	
+		</div>
+	</div>
+
+	<script type='text/javascript'>
+		
+		$(document).ready(function(){
+			$("#description_modal").modal("show");
+			$("#close_description_modal").click(function(){
+				startSimulation();
+			});
+		});
+
+		document.getElementById("title").innerHTML = "Graph Generation + Kruskal's & Dijkstra's Algorithms";
+	
+		var screenWidth = screen.availWidth / 1.25;
+		var screenHeight = screen.availHeight / 1.5;
+		
+		var nWidth = 40;
+		var nHeight = 40;
+		var margin = 100;
+		
+		let gridDistance = 100;
+		
+		var mst = [];
+
+		var alphabet = "ABCEFGHIJKLMNOPQRSTUVWXYZ";
+		
+		//display
+		var oX = 0; //x offset
+		var oY = 0; //y offset
+		var zoom = 1.0;
+		var mouseInCanvas = false;
+		var canvasElement = document.getElementById("my_canvas");
+		canvasElement.addEventListener("mouseleave", function(event){
+			mouseInCanvas = false;
+		}, false);
+		canvasElement.addEventListener("mouseover", function(event){
+			mouseInCanvas = true;
+		}, false);
+		
+
+		
+		var currentEdge = -1;
+		var currentNode = -1;
+		
+		var graph = new Graph();
+		
+		//Dijkstras Shortest Path
+		var dijkstrasData = new Array();
+		var currentPath = {path: new Array(), distance: 0};
+		var dijkstrasTarget = 7;
+
+		var dijkstrasStart = 0;
+		
+		function updateSpeed(){
+			masterSpeed = document.getElementById("run_speed").value;
+		}
+		function updateZoom(){
+			zoom = document.getElementById("zoom").value;
+		}
+		updateZoom();
+		
+		function updateDijkstraValues(){
+			var start = document.getElementById("dijkstras_start").value;
+			var end = document.getElementById("dijkstras_end").value;
+			
+			var recalc = parseInt(start) != dijkstrasStart;
+			dijkstrasTarget = parseInt(end);
+			dijkstrasStart = parseInt(start);
+			calculateDijkstras(recalc);
+			
+		}
+		
+		function calculateDijkstras(recalc = true){
+			if(recalc){
+				dijkstrasData = dijkstrasAlgorithm(graph, dijkstrasStart);
+			}
+			document.getElementById("current_path_distance").innerHTML = Math.floor(dijkstrasData[dijkstrasTarget].dist * 100) / 100;
+			var cP = new Array();
+			if(dijkstrasData[dijkstrasTarget] != undefined){
+				var prev = dijkstrasTarget;
+				while(prev != -1){
+					cP.push(prev);
+					prev = dijkstrasData[prev].previous;
+				}
+			}
+			currentPath = {path: cP, distance: dijkstrasData[dijkstrasTarget].dist};
+			
+		}
+		
+		function rand(min, max){
+			return Math.floor(Math.random() * (max - min)) + min;
+		}
+		
+		function generateWeighedGraphGrid(width, height){ 
+			//width and height are integers
+			let g = new Graph();
+			for(let i = 0; i < height; i++){
+				for(let j = 0; j < width; j++){
+					g.addNode(alphabet.charAt(i * width + j));
+					g.nodes[i * width + j].x = (i * 200) + margin;
+					g.nodes[i * width + j].y = (j * 200) + margin;
+					if(i > 0){
+						g.addEdge(i * width + j, (i - 1) * width + j, rand(1,30));
+					}
+					if(j > 0){
+						g.addEdge(i * width + j, i * width + j - 1, rand(1,30));
+					}
+				}
+			}
+			return g;
+		}
+		
+		function generateWeightedGraphWeb(n, w, h, next){
+		
+			let g = new Graph();
+			var used = [];
+			
+			for(let i = 0; i < n; i++){
+				g.addNode(i);
+				let xGrid = 0;
+				let yGrid = 0;
+				
+				do {
+					xGrid = rand(0, w);
+					yGrid = rand(0, h);
+				}while(used.includes(yGrid * w + xGrid));
+				used.push(yGrid * w + xGrid);
+				
+				g.nodes[i].x = margin + xGrid * gridDistance;
+				g.nodes[i].y = margin + yGrid * gridDistance;
+			}
+			
+			var i = 0;
+			makeWebEdges(g, i, true, () => {
+				next();
+			});
+			//need to call next when this finishes
+			return g;
+		}
+		
+		
+		
+		function makeWebEdgesInnerLoop(g, i, a, j, finish, next){
+			//if an edge is going to be added => go to a new node
+			//if no edge is added => continue with the inner loop
+			if(j < 10 && j < a.length){
+				let i2 = g.nodes.indexOf(a[j]);
+				let weight = Math.floor(distanceBetweenNodes(g,i,i2) / 10) / 10;
+				let edge = new Edge(i, i2, weight);
+				let intersect = edgeIntersectsAny(g, edge);
+				if(!edgeExists(g,i, i2) && !intersect){
+					g.edges.push(edge);
+					//console.log("Edge count: " + g.edges.length);
+					setTimeout(() => {
+						makeWebEdges(g, i2, false, finish, next);
+					}, 1000 / masterSpeed);
+				}else{
+					
+					makeWebEdgesInnerLoop(g, i, a, j + 1, finish, next);
+				
+				}
+			}else{
+				//end of one trail
+				next();
+			}
+		}
+		
+		function makeWebEdges(g, i, repeat, finish, next = () => {}){
+			if(i >= g.nodes.length){
+				finish();
+				return; 
+			}
+			let a = g.nodes.map((x) => x);
+			if(repeat){
+				next = () => {
+					makeWebEdges(g, i + 1, true, finish);
+				};
+			}
+			quickSortByDistanceFromNode(a, g.nodes[i]);
+			makeWebEdgesInnerLoop(g, i, a, 1, finish, next);
+		}
+		
+		function quickSortByDistanceFromNode(a, current){
+			quickSort(a, 0, a.length - 1, (ar,n,t) => {
+				let d1 = Math.sqrt(Math.pow(ar[n].x - current.x, 2) + Math.pow(ar[n].y - current.y, 2));
+				let d2 = Math.sqrt(Math.pow(ar[t].x - current.x, 2) + Math.pow(ar[t].y - current.y, 2));
+				return d1 < d2;
+			});
+		}
+		
+		function distanceBetweenNodes(g, i, j){
+			let n1 = g.nodes[i];
+			let n2 = g.nodes[j];
+			return Math.sqrt(Math.pow(n1.x - n2.x, 2) + Math.pow(n1.y - n2.y, 2));
+		}
+		
+		function edgeExists(g, i, j){
+			for(let x = 0; x < g.edges.length; x++){
+				if((g.edges[x].src == i && g.edges[x].dest == j) || 
+					g.edges[x].src == j && g.edges[x].dest == i){
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		function edgeIntersectsAny(g, e){
+			for(let x = 0; x < g.edges.length; x++){
+				let intersect = edgesIntersect(g, e, g.edges[x]);
+				if(intersect == true){
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		function edgesIntersect(g, e1, e2){
+			let n1 = g.nodes[e1.src];
+			let n2 = g.nodes[e1.dest];
+			let n3 = g.nodes[e2.src];
+			let n4 = g.nodes[e2.dest];
+			
+			let A1 = n2.y - n1.y;
+			let B1 = n1.x - n2.x;
+			let C1 = A1 * n1.x + B1 * n1.y;
+						
+			let A2 = n4.y - n3.y;
+			let B2 = n3.x - n4.x;
+			let C2 = A2 * n3.x + B2 * n3.y;
+			
+			let det = A1 * B2 - A2 * B1;
+			let x = -1;
+			let y = -1;
+			
+			
+			
+			if(det == 0){ //lines are parallel
+				let slope1 = (n2.y - n1.y) / (n2.x - n1.x);
+				let slope2 = (n4.y - n3.y) / (n4.x - n3.x);
+				let b1 = (n1.y) - slope1 * n1.x;
+				let b2 = (n3.y) - slope2 * n3.x;
+				if(n2.x - n1.x == 0){ //one line is vertical, so both lines are vertical b/c they are parallel lines
+					if(n1.x == n3.x){ //lines are also colinear
+						
+						if((Math.min(n3.y, n4.y) < Math.max(n1.y, n2.y) && Math.max(n1.y, n2.y) < Math.max(n3.y, n4.y)) ||
+						(Math.min(n1.y, n2.y) < Math.max(n3.y, n4.y) && Math.max(n3.y, n4.y) < Math.max(n1.y, n2.y))){
+							return true;
+						}
+					}
+				}else if(b1 == b2){ //lines are parallel, colinear, but not vertical
+					if((Math.min(n3.x, n4.x) < Math.max(n1.x, n2.x) && Math.max(n1.x, n2.x) < Math.max(n3.x, n4.x)) ||
+					(Math.min(n1.x, n2.x) < Math.max(n3.x, n4.x) && Math.max(n3.x, n4.x) < Math.max(n1.x, n2.x))){
+						return true;
+					}
+				}
+				//return false if the lines are parallel but no intersection is found
+				return false;
+			}else if(edgesHaveCommonNode(e1,e2)){ //not parallel and a common node => no intersection
+				return false;
+			}else{ //find point of intersection
+				x = (B2 * C1 - B1 * C2) / det;
+				y = (A1 * C2 - A2 * C1) / det;
+ 			}
+			
+			//if the point lies on both segments
+			if(pointOnSegment(x,y,n1,n2) && pointOnSegment(x, y, n3,n4)){
+				return true;
+			}
+			return false;
+		}
+		function edgesHaveCommonNode(e1, e2){
+			return (e1.src == e2.src || e1.src == e2.dest || e2.src == e1.dest || e1.dest == e2.dest);
+		}
+		
+		//after finding the point of intersection, this function determines whether the intersection is on both segments
+		function pointOnSegment(x,y,n1,n2){
+			let minX = Math.min(n1.x, n2.x);
+			let maxX = Math.max(n1.x, n2.x);
+			let minY = Math.min(n1.y, n2.y);
+			let maxY = Math.max(n1.y, n2.y);
+			return (minX <= x && x <= maxX && minY <= y && y <= maxY);
+		}
+		
+		
+		//finds the representative of a node
+		//representative is the node that is the ultimate parent of a group
+		function find(parent, n){
+			if(parent[n] == n){
+				return n;
+			}
+			return find(parent, parent[n]);
+		}
+		
+		function kruskalsAlgorithmEdgeLoop(graph, parent, result, i){
+			if(i < graph.edges.length){
+				let e = graph.edges[i];
+				let x = find(parent, e.src);
+				let y = find(parent, e.dest);
+				currentEdge = i;
+				if(x != y){
+					result.push(e);
+					parent[x] = y; //union
+				}
+				setTimeout(() => {kruskalsAlgorithmEdgeLoop(graph, parent, result, i+1)}, 1000 / masterSpeed);
+			}else{
+				currentEdge = -1;
+			}
+		}
+		
+		function kruskalsAlgorithm(graph, result){
+			//find the MST
+			//spanning tree connects all of the vertices in a graph without a cycle
+			//the minimum spanning tree is the spanning tree with the lowest total weight
+			
+			//sort the edges from smallest weight to largest weight
+			quickSort(graph.edges, 0, graph.edges.length - 1, (a, j, i) => {
+				return a[j].weight < a[i].weight;
+			});
+			var parent = new Array(graph.nodes.length);
+			
+			for(let i = 0; i < graph.nodes.length; i++){
+				parent[i] = i;
+			}
+			
+			
+			
+			kruskalsAlgorithmEdgeLoop(graph, parent, result, 0);
+		}
+		
+		
+		
+	
+		//takes in a graph and a starting index
+		//maybe this should be breadth first
+		function dijkstrasAlgorithm(g, i){
+			var data = new Array();
+			data[i] = {dist: 0, previous: -1};
+			var visited = [];
+			
+			var edges = organizeEdgeData(g);
+			var visitNow = [i];
+			var visitNext = [];			
+			while(visitNow.length > 0){
+				for(let j = 0; j < visitNow.length; j++){
+					//current index = visitNow[j]
+					let currentIndex = visitNow[j];
+					let amt = data[currentIndex].dist;
+					visited.push(visitNow[j]);
+					let currentEdges = edges[visitNow[j]];
+					quickSort(currentEdges, 0, currentEdges.length - 1, (a,b) => {
+						return a.weight < b.weight;
+					});
+					for(let k = 0; k < currentEdges.length; k++){
+						let e = currentEdges[k];
+						let d = data[e.dest];
+						if(d == undefined || e.weight + amt < d.dist){
+							data[e.dest] = {dist: e.weight + amt, previous: visitNow[j]};
+						}
+						if(!visited.includes(e.dest)){
+							visitNext.push(e.dest);
+						}
+					}
+				}
+				visitNow = visitNext.map((x) => x);
+				visitNext = [];
+			}
+			
+			return data;
+		}
+		
+		
+		function organizeEdgeData(g){
+			var result = new Array();
+			for(let i = 0; i < g.edges.length; i++){
+				let i1 = g.edges[i].src;
+				let i2 = g.edges[i].dest;
+				if(result[g.nodes[i1].value] == null){
+					result[g.nodes[i1].value] = new Array();
+				}
+				if(result[g.nodes[i2].value] == null){
+					result[g.nodes[i2].value] = new Array();
+				}
+				result[g.nodes[i1].value].push(new Edge(g.edges[i].src, g.edges[i].dest, g.edges[i].weight));
+				result[g.nodes[i2].value].push(new Edge(g.edges[i].dest, g.edges[i].src, g.edges[i].weight));
+				
+			}
+			return result;
+		}
+		
+		
+		
+		function startSimulation(){
+			var numberOfNodes = document.getElementById("number_of_nodes").value;
+			dijkstrasData = new Array();
+			graph = generateWeightedGraphWeb(numberOfNodes, 20, 10, () => {
+				kruskalsAlgorithm(graph, mst);
+				calculateDijkstras();
+				currentNode = -1;
+			});
+		}
+		
+		
+		function setup(){
+			var myCanvas = createCanvas(canvasElement.offsetWidth, screenHeight);
+			myCanvas.parent("my_canvas");
+		}
+		function draw(){
+			background(200);
+			textAlign(CENTER, CENTER);
+			
+			//display actions
+			translate(oX, oY);
+			if(mouseIsPressed && mouseInCanvas){
+				oX += movedX * 1.5;
+				oY += movedY * 1.5;
+			}
+			scale(zoom);
+
+			for(let i = 0; i < graph.edges.length; i++){
+				 let e = graph.edges[i]; 
+				 
+				 strokeWeight(4);
+				 if(currentEdge == i){
+					stroke(color(0,255,0));
+				 }else if(currentPath.path.includes(e.src) && currentPath.path.includes(e.dest)){
+					stroke(color(0,255,0));
+					strokeWeight(6);
+				 }else if(mst.includes(e)){
+					stroke(color(255, 0, 0));
+					strokeWeight(6);
+				 }else{
+					stroke(0);
+				 }
+				 let srcNode = graph.nodes[e.src];
+				 let destNode = graph.nodes[e.dest];
+				 line(srcNode.x, srcNode.y, destNode.x, destNode.y);
+				 
+				 let midX = (destNode.x - srcNode.x) / 2 + srcNode.x;
+				 let midY = (destNode.y - srcNode.y) / 2 + srcNode.y;
+				
+				 strokeWeight(1);
+				 stroke(0);
+				 textSize(8);
+				 
+				 fill(255);
+				 ellipse(midX, midY, nWidth / 2, nHeight / 2);
+				 fill(0);
+				 text(e.weight, midX, midY);
+			}
+			
+			
+			
+			stroke(0);
+			
+			strokeWeight(1);
+			textSize(16);
+			for(let i = 0; i < graph.nodes.length; i++){
+				let n = graph.nodes[i];
+				if(currentNode == i){
+					fill(color(255,0,0));
+				 }else{
+					fill(255);
+				 }
+				ellipse(n.x, n.y, nWidth, nHeight);
+				fill(0);
+				text(n.value, n.x, n.y);
+			}
+			
+			
+			
+		}
+		function mouseWheel(event){
+			if(mouseInCanvas){
+				zoom -= (event.delta / 5000);
+				document.getElementById("zoom").value = zoom;
+			}
+		}
+		
+		
+	</script>
+</body>
+
+</html> 

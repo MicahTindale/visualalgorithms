@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+
+<html> 
+	<head>
+		<title> Selection Sort </title>
+		
+		<style>
+			h1 {
+				text-align: center;
+				font-family: "Papyrus";
+			}
+			
+			#my_canvas {
+				text-align: center;
+				border-style: outset;
+				border: 5px solid brown;
+			}
+		</style>
+		
+		<script type='text/javascript' src='lib/p5.js'></script>
+	</head>
+
+	<body>
+	
+	<h1> 
+		Selection Sort
+	</h1>
+	
+	<div>
+	</div>
+	
+	
+	<div style='' id='my_canvas'>
+	
+	</div>
+	
+	<script type='text/javascript'>
+		
+		var elWidth = 80;
+		var elHeight = 80;
+		var screenWidth = screen.availWidth / 1.25;
+		var screenHeight = screen.availHeight / 1.25;
+		var margin = 100;
+		
+		
+		
+		var swapSpeed = 5;
+		var timeoutDelay = 5;
+		var jSpeed = 400; 
+		
+		var sortDelay = 1000;
+		
+		var currentIndex = 0;
+		var jIndex = 0;
+		
+		var colors = [[255,0,0], [0,255,0]];
+		
+		var minIndex = -1; //for use in selection sort
+		
+		
+		function ArrayElement(value){
+			this.value = value;
+			this.x = 0;
+			this.y = 0;
+		}
+		
+		var arr = [];
+		
+		function populateMyArray(number, upperLimit){
+			for(let i = 0; i < number; i++){
+				let n = Math.floor(Math.random() * upperLimit);
+				arr.push(new ArrayElement(n));
+			}
+		}
+		
+		populateMyArray(24, 100);
+		
+		
+		function assignPositions(){
+			//each row should have (screenWidth - (2 * margin)) / (elWidth * 1.5) elements
+			let rowCount = Math.floor((screenWidth - (2 * margin)) / (elWidth * 1.5));
+			var row = 0;
+			for(let i = 0; i < arr.length; i++){
+				row = Math.floor(i / rowCount);
+				var currentEl = arr[i];
+				var horizontalPosition = i - (row * rowCount);
+				currentEl.x = margin + (horizontalPosition * elWidth * 1.5);
+				currentEl.y = margin + (row * elHeight * 1.5);
+			}
+			
+		}
+		
+		assignPositions();
+		
+		function swapElements(el1, el2, next){
+			let dist = Math.sqrt(Math.pow(el1.x - el2.x, 2) + Math.pow(el1.y - el2.y, 2));
+			let time = (dist / (swapSpeed)) * (timeoutDelay);
+			time *= 1.5;
+			if(time < sortDelay){
+				time = sortDelay;
+			}		
+			let x1 = el1.x;
+			let x2 = el2.x;
+			let y1 = el1.y;
+			let y2 = el2.y;
+			moveElement(el1, x2, y2);
+			moveElement(el2, x1, y1); //so that the positions don't get messed up by altering el1's coords too quickly
+			setTimeout(() => {next()}, time*2);
+		}
+		
+		function moveElement(el, targetX, targetY){
+			let s = swapSpeed;
+			
+			let xDiff = targetX - el.x;
+			let yDiff = targetY - el.y;
+			
+			
+			if(xDiff == 0 && yDiff == 0){
+				return;
+			}else{
+				let hypo = Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff, 2));
+			
+				if (hypo < s){
+					s = hypo;
+				}
+			
+				let theta = Math.atan(yDiff/xDiff);
+				
+				if(el.y < targetY){
+					el.y += s * Math.abs(Math.sin(theta));
+				}else{
+					el.y -= s * Math.abs(Math.sin(theta));
+				}
+				if(el.x < targetX){
+					el.x += s * Math.abs(Math.cos(theta));
+				}else{
+					el.x -= s * Math.abs(Math.cos(theta));
+				}
+				setTimeout(() => {moveElement(el, targetX, targetY)}, timeoutDelay);
+			}
+			
+			
+		}
+
+		function selectionSortInner(a, i, j, next){
+			if(j < a.length){
+				jIndex = j;
+				if(a[j].value < a[minIndex].value){
+					minIndex = j;
+				}
+				setTimeout(() => {selectionSortInner(a,i,j + 1, next)}, jSpeed);
+			}else{
+				next();
+			}
+		}
+		
+		function selectionSort(a, i, next){ 
+			if(i < a.length - 1){
+				currentIndex = i;
+				minIndex = i;
+				selectionSortInner(a,i,i+1, () => {
+					if(minIndex != i){
+						swapElements(a[i], a[minIndex], () => {
+							let temp = a[i];
+							a[i] = a[minIndex];
+							a[minIndex] = temp;
+							assignPositions();
+							selectionSort(a, i+1, next);
+						});
+					}else{
+						highlightedIndex2 = -1;
+						setTimeout(() => {selectionSort(a, i+1, next)}, sortDelay);
+					}
+				});
+			}else{
+				next(i); //will set all elements to gray
+			}
+		}
+		
+		
+		selectionSort(arr, 0, finish);
+		
+		function finish(i){
+			minIndex = -1;
+			currentIndex = i + 2;
+			jIndex = -1;
+		}
+		
+		function setup(){
+			var myCanvas = createCanvas(screenWidth, screenHeight);
+			myCanvas.parent("my_canvas");
+		}
+		function draw(){
+			background(200);
+			
+			textSize(32);
+			textAlign(CENTER, CENTER);
+			for(let i = 0; i < arr.length; i++){
+				var currentEl = arr[i];
+				fill(255); //white
+				if(i == currentIndex || i == jIndex || i == minIndex){
+					if(i == currentIndex){
+						fill(color(colors[1][0], colors[1][1], colors[1][2]));
+					}else if(i == minIndex){
+						fill(color(colors[0][0], colors[0][1], colors[0][2]));
+					}else{
+						fill(255); // white
+					}
+					ellipse(currentEl.x + elWidth / 2, currentEl.y - 20, 15, 15);
+				}else if(i < currentIndex){
+					fill(200);
+				}
+				rect(currentEl.x, currentEl.y, elWidth, elHeight);
+				fill(0);
+				text(currentEl.value, currentEl.x + elWidth / 2, currentEl.y + elHeight / 2);
+			}
+			
+		}
+	</script>
+</body>
+
+</html>

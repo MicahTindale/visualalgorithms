@@ -1,0 +1,10 @@
+{
+	"name": "Micah's Winter Project 2022-23",
+	"version": 0.1,
+	"dependencies": {
+		"brain.js": "^2.0.0-beta.17",
+		"ejs": "^3.1.8",
+		"express": "^4.18.2",
+		"fs": "^0.0.1-security"
+	}
+}

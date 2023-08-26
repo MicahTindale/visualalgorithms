@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html> 
+	<head>
+		
+		<title> Selection Sort </title>
+		<style>
+			h1 {
+				text-align: center;
+				font-weight: 900;
+			}
+			
+			#my_canvas {
+				text-align: center;
+				border-style: outset;
+				border: 5px solid brown;
+			}
+		</style>
+		
+		<%- include("../partials/header.ejs") %>
+		
+		<script type='text/javascript' src='lib/p5.js'></script>
+		<script type='text/javascript' src='lib/tools.js'> </script>
+		
+	</head>
+
+	<body>
+	
+	
+	
+	<div style='' id='my_canvas'>
+	
+	</div>
+	
+	<script type='text/javascript'>
+		var title = document.getElementById("title");
+		title.innerHTML = "Selection Sort";
+		
+		//display
+		var oX = 0; //x offset
+		var oY = 0; //y offset
+		var zoom = 1.0;
+		
+		
+		var elWidth = 80;
+		var elHeight = 80;
+		var screenWidth = screen.availWidth / 1.25;
+		var screenHeight = screen.availHeight / 1.5;
+		var margin = 100;
+
+		
+		
+		
+		
+		var jSpeed = 400; 
+		
+		
+		var currentIndex = 0;
+		var jIndex = 0;
+		
+		var colors = [[255,0,0], [0,255,0]];
+		
+		
+		
+		var arr = []; //Array of ArrayElements
+		randomArrayPopulation(arr, 24,100, 1000);
+		
+		assignPositionsInGrid(arr, screenWidth, elWidth, elHeight, margin);
+		
+		
+		
+		
+		var minIndex = -1; //for use in selection sort
+
+		function selectionSortInner(a, i, j, next){
+			if(j < a.length){
+				jIndex = j;
+				if(a[j].value < a[minIndex].value){
+					minIndex = j;
+				}
+				setTimeout(() => {selectionSortInner(a,i,j + 1, next)}, jSpeed / masterSpeed);
+			}else{
+				next();
+			}
+		}
+		
+		function selectionSort(a, i, next){ 
+			if(i < a.length - 1){
+				currentIndex = i;
+				minIndex = i;
+				selectionSortInner(a,i,i+1, () => {
+					if(minIndex != i){
+						swapElements(a[i], a[minIndex], () => {
+							let temp = a[i];
+							a[i] = a[minIndex];
+							a[minIndex] = temp;
+							assignPositionsInGrid(arr, screenWidth, elWidth, elHeight, margin);
+							selectionSort(a, i+1, next);
+						});
+					}else{
+						setTimeout(() => {selectionSort(a, i+1, next)}, delaySpeed1 / masterSpeed);
+					}
+				});
+			}else{
+				next(i); //will set all elements to gray
+			}
+		}
+		function finishSelectionSort(i){ //run upon sort completion  
+			minIndex = -1;
+			currentIndex = i + 2;
+			jIndex = -1;
+		}
+		
+		selectionSort(arr, 0, finishSelectionSort);
+		
+		
+		//p5.js
+		function setup(){
+			var myCanvas = createCanvas(screenWidth, screenHeight);
+			myCanvas.parent("my_canvas");
+		}
+		function draw(){
+			background(200);
+			
+			if(mouseIsPressed){
+				oX += movedX * 1.5;
+				oY += movedY * 1.5;
+			}
+			
+			scale(zoom);
+			translate(oX, oY);
+			textSize(32);
+			textAlign(CENTER, CENTER);
+			for(let i = 0; i < arr.length; i++){
+				var currentEl = arr[i];
+				fill(255); //white
+				if(i == currentIndex || i == jIndex || i == minIndex){
+					if(i == currentIndex){
+						fill(color(colors[1][0], colors[1][1], colors[1][2]));
+					}else if(i == minIndex){
+						fill(color(colors[0][0], colors[0][1], colors[0][2]));
+					}else{
+						fill(255); // white
+					}
+					ellipse(currentEl.x + elWidth / 2, currentEl.y - 20, 15, 15);
+				}else if(i < currentIndex){
+					fill(200);
+				}
+				rect(currentEl.x, currentEl.y, elWidth, elHeight);
+				fill(0);
+				text(currentEl.value, currentEl.x + elWidth / 2, currentEl.y + elHeight / 2);
+			}
+			
+		}
+		
+		function mouseWheel(event){
+			zoom -= (event.delta / 5000);
+		}
+	</script>
+</body>
+
+</html>

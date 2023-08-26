@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+
+
+<html>
+
+<head>
+	<title> Kruskals Algorithm </title>
+	<%- include("../partials/header.ejs") %>
+	
+	<style>
+		h1 {
+			text-align: center;
+		}
+			
+		
+	</style>
+		
+	<script type='text/javascript' src='lib/p5.js'></script>
+	<script type='text/javascript' src='lib/tools.js'> </script>
+
+</head>
+
+<body>
+
+
+	<div class='row'> 
+		<div class='container col-sm-3' id='controls'>
+			<h1> Controls </h1>
+			
+			<div class='row'>
+				<div class='col'>
+					<label for='speed'>Speed:</label>
+				</div>
+				<div class='col'>
+					<input class='form-control' type='range' min='1' max='50' id='run_speed' onchange='updateSpeed()'>
+				</div>
+			</div>
+			<div class='row'>
+				<div class='col'>
+					<label for='number_of_nodes'>Number of Nodes:</label>
+				</div>
+				<div class='col'>
+					<input class='form-control' type='number' min='5' max='1000' value='10' id='number_of_nodes'>
+				</div>
+			</div>
+			<input class='form-control' type='button' value='Restart Simulation' id='restart_simulation' onclick='startSimulation()'>
+		</div>
+
+		<div class='container col-sm-9 p-0' id='my_canvas'>
+	
+		</div>
+	</div>
+
+	<script type='text/javascript'>
+	
+		document.getElementById("title").innerHTML = "Kruskal's Algorithm";
+	
+		var screenWidth = screen.availWidth / 1.25;
+		var screenHeight = screen.availHeight / 1.5;
+		
+		var nWidth = 40;
+		var nHeight = 40;
+		var margin = 100;
+		
+		let gridDistance = 100;
+		
+		var mst = [];
+
+		var alphabet = "ABCEFGHIJKLMNOPQRSTUVWXYZ";
+		
+		//display
+		var oX = 0; //x offset
+		var oY = 0; //y offset
+		var zoom = 1.0;
+		var mouseInCanvas = false;
+		var canvasElement = document.getElementById("my_canvas");
+		canvasElement.addEventListener("mouseleave", function(event){
+			mouseInCanvas = false;
+		}, false);
+		canvasElement.addEventListener("mouseover", function(event){
+			mouseInCanvas = true;
+		}, false);
+		
+
+		
+		var currentEdge = -1;
+		var currentNode = -1;
+		
+		var graph = new Graph();
+		
+		function updateSpeed(){
+			masterSpeed = document.getElementById("run_speed").value;
+		}
+		
+		function rand(min, max){
+			return Math.floor(Math.random() * (max - min)) + min;
+		}
+		
+		function generateWeighedGraphGrid(width, height){ 
+			//width and height are integers
+			let g = new Graph();
+			for(let i = 0; i < height; i++){
+				for(let j = 0; j < width; j++){
+					g.addNode(alphabet.charAt(i * width + j));
+					g.nodes[i * width + j].x = (i * 200) + margin;
+					g.nodes[i * width + j].y = (j * 200) + margin;
+					if(i > 0){
+						g.addEdge(i * width + j, (i - 1) * width + j, rand(1,30));
+					}
+					if(j > 0){
+						g.addEdge(i * width + j, i * width + j - 1, rand(1,30));
+					}
+				}
+			}
+			return g;
+		}
+		
+		function generateWeightedGraphWeb(n, w, h, next){
+		
+			let g = new Graph();
+			var used = [];
+			
+			for(let i = 0; i < n; i++){
+				g.addNode(i);
+				let xGrid = 0;
+				let yGrid = 0;
+				
+				do {
+					xGrid = rand(0, w);
+					yGrid = rand(0, h);
+				}while(used.includes(yGrid * w + xGrid));
+				used.push(yGrid * w + xGrid);
+				
+				g.nodes[i].x = margin + xGrid * gridDistance;
+				g.nodes[i].y = margin + yGrid * gridDistance;
+			}
+			makeWebEdges(g, 0, () => {
+				next();
+			});
+			
+			return g;
+		}
+		
+		function makeWebEdgesImproved(){
+			
+		}
+		
+		function makeWebEdgesInnerLoop(g, i, a, j, next){
+			if(j < a.length){
+				let i2 = g.nodes.indexOf(a[j]);
+				let weight = Math.floor(distanceBetweenNodes(g,i,i2) / 100);
+				let edge = new Edge(i, i2, weight);
+				let intersect = edgeIntersectsAny(g, edge);
+				if(!edgeExists(g,i, i2) && !intersect){
+					g.edges.push(edge);
+					console.log("Edge count: " + g.edges.length);
+					setTimeout(() => {
+						makeWebEdges(g, i2, () => {
+							makeWebEdgesInnerLoop(g,i,a,j + 1, () => {next()});
+						});
+					}, 1000 / masterSpeed);
+				}else{
+					makeWebEdgesInnerLoop(g, i, a, j + 1, () => {next()});
+				}
+			}else{
+				next();
+			}
+		}
+		
+		function makeWebEdges(g, i, next){
+			let a = g.nodes.map((x) => x);
+			quickSortByDistanceFromNode(a, g.nodes[i]);
+			makeWebEdgesInnerLoop(g, i, a, 1, () => {next()});
+		}
+		
+		function quickSortByDistanceFromNode(a, current){
+			quickSort(a, 0, a.length - 1, (ar,n,t) => {
+				let d1 = Math.sqrt(Math.pow(ar[n].x - current.x, 2) + Math.pow(ar[n].y - current.y, 2));
+				let d2 = Math.sqrt(Math.pow(ar[t].x - current.x, 2) + Math.pow(ar[t].y - current.y, 2));
+				return d1 < d2;
+			});
+		}
+		
+		function distanceBetweenNodes(g, i, j){
+			let n1 = g.nodes[i];
+			let n2 = g.nodes[j];
+			return Math.sqrt(Math.pow(n1.x - n2.x, 2) + Math.pow(n1.y - n2.y, 2));
+		}
+		
+		function edgeExists(g, i, j){
+			for(let x = 0; x < g.edges.length; x++){
+				if((g.edges[x].src == i && g.edges[x].dest == j) || 
+					g.edges[x].src == j && g.edges[x].dest == i){
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		function edgeIntersectsAny(g, e){
+			for(let x = 0; x < g.edges.length; x++){
+				let intersect = edgesIntersect(g, e, g.edges[x]);
+				if(intersect == true){
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		function edgesIntersect(g, e1, e2){
+			let n1 = g.nodes[e1.src];
+			let n2 = g.nodes[e1.dest];
+			let n3 = g.nodes[e2.src];
+			let n4 = g.nodes[e2.dest];
+			
+			let A1 = n2.y - n1.y;
+			let B1 = n1.x - n2.x;
+			let C1 = A1 * n1.x + B1 * n1.y;
+						
+			let A2 = n4.y - n3.y;
+			let B2 = n3.x - n4.x;
+			let C2 = A2 * n3.x + B2 * n3.y;
+			
+			let det = A1 * B2 - A2 * B1;
+			let x = -1;
+			let y = -1;
+			
+			
+			
+			if(det == 0){ //lines are parallel
+				let slope1 = (n2.y - n1.y) / (n2.x - n1.x);
+				let slope2 = (n4.y - n3.y) / (n4.x - n3.x);
+				let b1 = (n1.y) - slope1 * n1.x;
+				let b2 = (n3.y) - slope2 * n3.x;
+				if(n2.x - n1.x == 0){ //one line is vertical, so both lines are vertical b/c they are parallel lines
+					if(n1.x == n3.x){ //lines are also colinear
+						
+						if((Math.min(n3.y, n4.y) < Math.max(n1.y, n2.y) && Math.max(n1.y, n2.y) < Math.max(n3.y, n4.y)) ||
+						(Math.min(n1.y, n2.y) < Math.max(n3.y, n4.y) && Math.max(n3.y, n4.y) < Math.max(n1.y, n2.y))){
+							return true;
+						}
+					}
+				}else if(b1 == b2){ //lines are parallel, colinear, but not vertical
+					if((Math.min(n3.x, n4.x) < Math.max(n1.x, n2.x) && Math.max(n1.x, n2.x) < Math.max(n3.x, n4.x)) ||
+					(Math.min(n1.x, n2.x) < Math.max(n3.x, n4.x) && Math.max(n3.x, n4.x) < Math.max(n1.x, n2.x))){
+						return true;
+					}
+				}
+				//return false if the lines are parallel but no intersection is found
+				return false;
+			}else if(edgesHaveCommonNode(e1,e2)){ //not parallel and a common node => no intersection
+				return false;
+			}else{ //find point of intersection
+				x = (B2 * C1 - B1 * C2) / det;
+				y = (A1 * C2 - A2 * C1) / det;
+ 			}
+			
+			//if the point lies on both segments
+			if(pointOnSegment(x,y,n1,n2) && pointOnSegment(x, y, n3,n4)){
+				return true;
+			}
+			return false;
+		}
+		function edgesHaveCommonNode(e1, e2){
+			return (e1.src == e2.src || e1.src == e2.dest || e2.src == e1.dest || e1.dest == e2.dest);
+		}
+		
+		//after finding the point of intersection, this function determines whether the intersection is on both segments
+		function pointOnSegment(x,y,n1,n2){
+			let minX = Math.min(n1.x, n2.x);
+			let maxX = Math.max(n1.x, n2.x);
+			let minY = Math.min(n1.y, n2.y);
+			let maxY = Math.max(n1.y, n2.y);
+			return (minX <= x && x <= maxX && minY <= y && y <= maxY);
+		}
+		
+		
+		//finds the representative of a node
+		//representative is the node that is the ultimate parent of a group
+		function find(parent, n){
+			if(parent[n] == n){
+				return n;
+			}
+			return find(parent, parent[n]);
+		}
+		
+		function kruskalsAlgorithmEdgeLoop(graph, parent, result, i){
+			if(i < graph.edges.length){
+				let e = graph.edges[i];
+				let x = find(parent, e.src);
+				let y = find(parent, e.dest);
+				currentEdge = i;
+				if(x != y){
+					result.push(e);
+					parent[x] = y; //union
+				}
+				setTimeout(() => {kruskalsAlgorithmEdgeLoop(graph, parent, result, i+1)}, 1000 / masterSpeed);
+			}else{
+				currentEdge = -1;
+			}
+		}
+		
+		function kruskalsAlgorithm(graph, result){
+			//find the MST
+			//spanning tree connects all of the vertices in a graph without a cycle
+			//the minimum spanning tree is the spanning tree with the lowest total weight
+			
+			//sort the edges from smallest weight to largest weight
+			quickSort(graph.edges, 0, graph.edges.length - 1, (a, j, i) => {
+				return a[j].weight < a[i].weight;
+			});
+			var parent = new Array(graph.nodes.length);
+			
+			for(let i = 0; i < graph.nodes.length; i++){
+				parent[i] = i;
+			}
+			
+			
+			
+			kruskalsAlgorithmEdgeLoop(graph, parent, result, 0);
+		}
+		
+		
+		
+		
+		function startSimulation(){
+			var numberOfNodes = document.getElementById("number_of_nodes").value;
+			graph = generateWeightedGraphWeb(numberOfNodes, 10, 10, () => {
+				kruskalsAlgorithm(graph, mst);
+				currentNode = -1;
+			});
+		}
+		startSimulation();
+		
+		
+		function setup(){
+			var myCanvas = createCanvas(canvasElement.offsetWidth, screenHeight);
+			myCanvas.parent("my_canvas");
+		}
+		function draw(){
+			background(200);
+			textAlign(CENTER, CENTER);
+			
+			//display actions
+			translate(oX, oY);
+			if(mouseIsPressed && mouseInCanvas){
+				oX += movedX * 1.5;
+				oY += movedY * 1.5;
+			}
+			scale(zoom);
+
+			
+			for(let i = 0; i < graph.edges.length; i++){
+				 let e = graph.edges[i]; 
+				 strokeWeight(4);
+				 if(currentEdge == i){
+					stroke(color(0,255,0));
+				 }else if(mst.includes(e)){
+					stroke(color(255, 0, 0));
+					strokeWeight(6);
+				 }else{
+					stroke(0);
+				 }
+				 let srcNode = graph.nodes[e.src];
+				 let destNode = graph.nodes[e.dest];
+				 line(srcNode.x, srcNode.y, destNode.x, destNode.y);
+				 
+				 let midX = (destNode.x - srcNode.x) / 2 + srcNode.x;
+				 let midY = (destNode.y - srcNode.y) / 2 + srcNode.y;
+				
+				 strokeWeight(1);
+				 stroke(0);
+				 textSize(8);
+				 
+				 fill(255);
+				 ellipse(midX, midY, nWidth / 2, nHeight / 2);
+				 fill(0);
+				 text(e.weight, midX, midY);
+			}
+			
+			strokeWeight(1);
+			textSize(16);
+
+			for(let i = 0; i < graph.nodes.length; i++){
+				let n = graph.nodes[i];
+				if(currentNode == i){
+					fill(color(255,0,0));
+				 }else{
+					fill(255);
+				 }
+				ellipse(n.x, n.y, nWidth, nHeight);
+				fill(0);
+				text(n.value, n.x, n.y);
+			}
+			
+		}
+		function mouseWheel(event){
+			if(mouseInCanvas){
+				zoom -= (event.delta / 5000);
+			}
+		}
+		
+		
+	</script>
+</body>
+
+</html> 

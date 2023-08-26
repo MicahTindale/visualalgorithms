@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<script src="//unpkg.com/brain.js"></script>
+	
+</head>
+
+<body>
+
+<script type='text/javascript'>
+	
+	var trainingData = [];
+	const m = 
+	"#     #"+
+	"##   ##"+
+	"# # # #"+
+	"#  #  #"+
+	"#     #"+
+	"#     #";
+	
+	const n = 
+	"#     #"+
+	"##    #"+
+	"# #   #"+
+	"#  #  #"+
+	"#   # #"+
+	"#    ##";
+	
+	const o = 
+	"#######"+
+	"#     #"+
+	"#     #"+
+	"#     #"+
+	"#     #"+
+	"#######";
+	
+	const p = 
+	"#######"+
+	"#     #"+
+	"#######"+
+	"#      "+
+	"#      "+
+	"#      ";
+	
+	var net = new brain.NeuralNetwork();
+	
+	
+	function toArray(character){
+		var result = [];
+		for(let i = 0; i < character.length; i++){
+			result.push(convertCharacter(character.charAt(i)));
+		}
+		return result;
+	}
+	function convertCharacter(c){
+		return c === '#' ? 1 : 0;
+	}
+	
+	
+	
+</script> 
+
+
+</body>
+
+
+</html>

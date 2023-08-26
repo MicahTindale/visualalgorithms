@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+
+<html> 
+	<head>
+		<title> Selection Sort </title>
+		<script type='text/javascript' src='lib/p5.js'></script>
+	</head>
+
+	<body>
+	
+	<script type='text/javascript'>
+		
+		var elementWidth = 80;
+		var elementHeight = 80;
+		
+		var offsetX = 100;
+		var offsetY = 100;
+		
+		var lastIndex1 = -1;
+		var lastIndex2 = -1;
+		
+		var shade = 0;
+
+		
+		var myArr = [];
+		populateMyArray(50);
+		
+		function populateMyArray(amount){
+			for(let i = 0; i < amount; i++){
+				myArr.push(Math.floor(Math.random() * 100));
+			}
+		}
+		
+		function sortArray(arr){
+			for(let i = 0; i < arr.length; i++){
+				let minIndex = i;
+				for(let j = i + 1; j < arr.length; j++){
+					if(arr[j] < arr[minIndex]) {
+						minIndex = j;
+					}
+				}
+				if(minIndex != i){
+					
+					let temp = arr[i];
+					arr[i] = arr[minIndex];
+					arr[minIndex] = temp;
+				}
+				sleep(1000);
+			}
+			return arr;
+		}
+		
+		function selectionSort(arr, i){
+			console.log(arr);
+			if(i < arr.length){
+				let minIndex = i;
+				for(let j = i + 1; j < arr.length; j++){
+					if(arr[j] < arr[minIndex]) {
+						minIndex = j;
+					}
+				}
+				if(minIndex != i){
+					lastIndex1 = i;
+					lastIndex2 = minIndex;
+					shade = 255;
+					increaseShade(200);
+					let temp = arr[i];
+					arr[i] = arr[minIndex];
+					arr[minIndex] = temp;
+				}
+				setTimeout(() => {selectionSort(arr, i + 1)}, 1000);
+			}
+		}
+		
+		function increaseShade(target){
+			if(shade == target){
+				return;
+			}
+			else if(shade < target){
+				shade++;
+			}else if(shade > target){
+				shade--;
+			}
+			setTimeout(() => {increaseShade(target)}, 5);
+		}
+		
+		
+		
+		function sleep(time){
+			const date = Date.now();
+			let currentDate = null;
+			do {
+				currentDate = Date.now();
+			}while(currentDate - date < time);
+		}
+		
+		
+		
+		selectionSort(myArr, 0);
+		
+		
+		
+		
+		
+		function setup(){
+			createCanvas(screen.availWidth, screen.availHeight);
+		}
+		function draw(){
+			background(200);
+			let x = offsetX;
+			let y = offsetY;
+			for(let i = 0; i < myArr.length; i++){
+				if(i == lastIndex1 || i == lastIndex2){
+					let c = color(shade,0,0);
+					fill(c);
+				}else{
+					fill(255);
+				}
+				
+				let num = myArr[i];
+				rect(x - elementWidth/2,y - elementHeight/2, elementWidth, elementHeight);
+				
+				fill(0);
+				textSize(32);
+				textAlign(CENTER, CENTER);
+				text(num, x,y);
+				x += (elementWidth *1.5);
+				if(x > screen.availWidth){
+					x = offsetX;
+					y += (elementHeight * 1.5);
+				}
+			}
+			
+		}
+	</script>
+</body>
+
+</html>
