@@ -22,17 +22,6 @@ app.get("/selectionsort", (req, res) => {
 app.get("/kruskals", (req, res) => {
 	res.render("pages/kruskals_algorithm_improved");
 });
-app.get("/neuralnetwork", (req, res) => {
-	fs.readFile('public/res/training_data.txt', 'utf8', (err, data) => {
-	if(err){
-		console.log(err);
-		return;
-	}
-	console.log(data);
-	res.render("pages/neural_network", {trainingData: data});
-	});
-	
-});
 
 app.listen(port, ()=>{
 	console.log("Listening on port: " + port);
